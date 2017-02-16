@@ -1,12 +1,32 @@
 #include <iostream>
 #include <random>
+#include <vector>
 
 #include "math/Math.h"
 
-
+void CreatePoints(std::vector<agarzon::Vec3>& points, int numPositions);
+void CalculateDistances(std::vector<float>& distances, const agarzon::Vec3& startPoint, const std::vector<agarzon::Vec3>& endPoints);
 
 int main()
 {
+	int NUM_POINTS = 10000000;
+	std::vector<agarzon::Vec3> points;
+	std::vector<float> distances;
+
+	CreatePoints(points, NUM_POINTS);
+
+	CalculateDistances(distances, points[0], points);
+	
+	std::cout << "Press any key to continue";
+	std::getchar();
+	return 0;
+}
+
+void CreatePoints(std::vector<agarzon::Vec3>& positions, int numPositions)
+{
+	// reserve beforehand the positions needed 
+	positions.reserve(numPositions);
+
 	// seed mt19937 random number generator
 	std::random_device rd;
 	std::mt19937 generator(rd());
@@ -14,15 +34,22 @@ int main()
 	// create a uniform distribution
 	std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(1000000.0f, FLT_MAX));
 
-	// generate random positions
-	for (int i = 0; i < 10; i++)
+	// push random points
+	for (int i = 0; i < numPositions; i++)
 	{
-		agarzon::Vec3 posA(distribution(generator), distribution(generator), distribution(generator));
-		agarzon::Vec3 posB(distribution(generator), distribution(generator), distribution(generator));
-		printf("(%f, %f, %f)  , (%f, %f, %f) )\n", posA.x, posA.y, posA.z, posB.x, posB.y, posB.z);
+		positions.push_back(agarzon::Vec3(distribution(generator), distribution(generator), distribution(generator)));
 	}
-	
-	std::cout << "Press any key to continue";
-	std::getchar();
-	return 0;
 }
+
+void CalculateDistances(std::vector<float>& distances, const agarzon::Vec3& startPoint, const std::vector<agarzon::Vec3>& positions)
+{
+	distances.reserve(positions.size());
+
+	for (size_t i = 0; i < positions.size(); i++)
+	{
+		float distance = agarzon::Distance(startPoint, positions[i]);
+		distances.push_back(distance);
+	}
+}
+
+
