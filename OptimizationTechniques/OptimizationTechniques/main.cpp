@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <chrono>
 
 #include "math/Math.h"
 
@@ -9,14 +10,32 @@ void CalculateDistances(std::vector<float>& distances, const agarzon::Vec3& star
 
 int main()
 {
-	int NUM_POINTS = 10000000;
+	int NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
 	std::vector<float> distances;
 
-	CreatePoints(points, NUM_POINTS);
+	std::chrono::time_point<std::chrono::system_clock> pointsCreationStart, pointsCreationEnd;
+	std::chrono::time_point<std::chrono::system_clock> calculateDistancesStart, calculateDistancesEnd;
 
+	// points creation
+	pointsCreationStart = std::chrono::system_clock::now();
+	CreatePoints(points, NUM_POINTS);
+	pointsCreationEnd = std::chrono::system_clock::now();
+
+	// distance calculations
+	calculateDistancesStart = std::chrono::system_clock::now();
 	CalculateDistances(distances, points[0], points);
-	
+	calculateDistancesEnd = std::chrono::system_clock::now();
+
+	// print time results
+	std::cout << "Points creation (seconds): " << std::chrono::duration_cast<std::chrono::seconds>(pointsCreationEnd - pointsCreationStart).count() << std::endl;
+	std::cout << "Distance calculation (seconds): " << std::chrono::duration_cast<std::chrono::seconds>(calculateDistancesEnd - calculateDistancesStart).count() << std::endl;
+	std::cout << "Total time (seconds): " << std::chrono::duration_cast<std::chrono::seconds>(calculateDistancesEnd - pointsCreationStart).count() << std::endl;
+	std::cout << std::endl;
+	std::cout << "Points creation (milliseconds): " << std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count() << std::endl;
+	std::cout << "Distance calculation (milliseconds): " << std::chrono::duration_cast<std::chrono::milliseconds>(calculateDistancesEnd - calculateDistancesStart).count() << std::endl;
+	std::cout << "Total time (milliseconds): " << std::chrono::duration_cast<std::chrono::milliseconds>(calculateDistancesEnd - pointsCreationStart).count() << std::endl;
+
 	std::cout << "Press any key to continue";
 	std::getchar();
 	return 0;
