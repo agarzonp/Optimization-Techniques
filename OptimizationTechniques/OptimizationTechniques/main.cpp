@@ -41,10 +41,10 @@ int main()
 	return 0;
 }
 
-void CreatePoints(std::vector<agarzon::Vec3>& positions, int numPositions)
+void CreatePoints(std::vector<agarzon::Vec3>& points, int numPoints)
 {
-	// reserve beforehand the positions needed 
-	positions.reserve(numPositions);
+	// allocate first
+	points.resize(numPoints);
 
 	// seed mt19937 random number generator
 	std::random_device rd;
@@ -54,20 +54,24 @@ void CreatePoints(std::vector<agarzon::Vec3>& positions, int numPositions)
 	std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(1000000.0f, FLT_MAX));
 
 	// push random points
-	for (int i = 0; i < numPositions; i++)
+	for (int i = 0; i < numPoints; i++)
 	{
-		positions.push_back(agarzon::Vec3(distribution(generator), distribution(generator), distribution(generator)));
+		agarzon::Vec3& p = points[i];
+
+		p.x = distribution(generator);
+		p.y = distribution(generator);
+		p.z = distribution(generator);
 	}
 }
 
-void CalculateDistances(std::vector<float>& distances, const agarzon::Vec3& startPoint, const std::vector<agarzon::Vec3>& positions)
+void CalculateDistances(std::vector<float>& distances, const agarzon::Vec3& startPoint, const std::vector<agarzon::Vec3>& points)
 {
-	distances.reserve(positions.size());
+	// allocate first
+	distances.reserve(points.size());
 
-	for (size_t i = 0; i < positions.size(); i++)
+	for (size_t i = 0; i < points.size(); i++)
 	{
-		float distance = agarzon::Distance(startPoint, positions[i]);
-		distances.push_back(distance);
+		distances[i] = agarzon::Distance(startPoint, points[i]);
 	}
 }
 

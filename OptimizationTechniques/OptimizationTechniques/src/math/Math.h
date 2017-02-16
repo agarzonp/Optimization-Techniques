@@ -14,12 +14,14 @@ namespace agarzon
 		Vec3() {}
 		Vec3(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
 
-
+		
 		Vec3& operator=(const Vec3& rhs)
 		{
 			x = rhs.x;
 			y = rhs.y;
 			z = rhs.z;
+
+			return (*this);
 		}
 
 		Vec3 operator-(const Vec3& rhs) const
