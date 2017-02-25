@@ -2,6 +2,7 @@
 #include <random>
 #include <vector>
 #include <chrono>
+#include <sstream>
 
 #include "math/Math.h"
 
@@ -13,8 +14,10 @@ std::mt19937 generator(rd());
 std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(1000000.0f, FLT_MAX));
 
 // time points
-std::chrono::time_point<std::chrono::system_clock> pointsCreationStart, pointsCreationEnd;
+typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
+TimePoint pointsCreationStart, pointsCreationEnd;
 
+// Optimisation type
 enum class Optimisation
 {
 	OPTIMISATION_NONE,
@@ -32,10 +35,12 @@ const char* optimisationStrings[] =
 	"THREAD_POOL"
 };
 
-
+// function declarations
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation = Optimisation::OPTIMISATION_NONE);
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
+std::string GetTimeStr(TimePoint start, TimePoint end);
 
+// main
 int main()
 {
 	// The set of points
@@ -75,6 +80,7 @@ int main()
 	return 0;
 }
 
+// CreatePoints
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation /*= OPTIMISATION_NONE */)
 {
 	switch (optimisation)
@@ -101,11 +107,11 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 
 	// print time results
 	printf("\n");
-	printf("Points created! Time (seconds): %llu\n", std::chrono::duration_cast<std::chrono::seconds>(pointsCreationEnd - pointsCreationStart).count());
-	printf("Points created! Time (milliseconds): %llu\n", std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count());
+	printf("Points created! Time: %s\n", GetTimeStr(pointsCreationStart, pointsCreationEnd).c_str());
 	printf("\n");
 }
 
+// _CreatePoints
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
 {
 	// push random points
@@ -117,4 +123,18 @@ void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
 		p.y = distribution(generator);
 		p.z = distribution(generator);
 	}
+}
+
+// GetTimeStr
+std::string GetTimeStr(TimePoint start, TimePoint end)
+{
+	size_t total = (size_t)std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count();
+
+	size_t seconds = total / 1000;
+	size_t milliseconds = total - (seconds * 1000);
+
+	std::stringstream ss;
+	ss << seconds << "s" << " " << milliseconds << "ms";
+
+	return ss.str();
 }
