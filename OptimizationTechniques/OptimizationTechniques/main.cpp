@@ -3,6 +3,8 @@
 #include <vector>
 #include <chrono>
 #include <sstream>
+#include <algorithm>
+#include<thread>
 
 #include "math/Math.h"
 
@@ -36,8 +38,11 @@ const char* optimisationStrings[] =
 };
 
 // function declarations
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation = Optimisation::OPTIMISATION_NONE);
-void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation);
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads);
+void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex);
+
 std::string GetTimeStr(TimePoint start, TimePoint end);
 
 // main
@@ -46,6 +51,8 @@ int main()
 	// The set of points
 	size_t NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
+
+	size_t m = sizeof(agarzon::Vec3) * NUM_POINTS;
 
 	// allocate memory for NUM_POINTS
 	printf("Allocating memory for %d points...\n", NUM_POINTS);
@@ -81,20 +88,33 @@ int main()
 }
 
 // CreatePoints
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation /*= OPTIMISATION_NONE */)
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation)
 {
 	switch (optimisation)
 	{
 	case Optimisation::OPTIMISATION_NONE:
 	{
+		// create points
 		printf("Creating Points...\n");
 		pointsCreationStart = std::chrono::system_clock::now();
-		_CreatePoints(points, numPoints);
+		CreatePoints(points, numPoints);
 		pointsCreationEnd = std::chrono::system_clock::now();
 		break;
 	}
 	case Optimisation::OPTIMISATION_THREADS:
 	{
+		// get the number of worker threads from the user
+		printf("Number of worker threads: ");
+		char buffer[256];
+		std::cin.getline(buffer, 256);
+		size_t numWorkerThreads = std::max(std::stoi(buffer), 1);
+
+		// create points
+		printf("Creating Points...\n");
+		pointsCreationStart = std::chrono::system_clock::now();
+		CreatePoints(points, numPoints, numWorkerThreads);
+		pointsCreationEnd = std::chrono::system_clock::now();
+
 		break;
 	}
 	case Optimisation::OPTIMISATION_THREAD_POOL:
@@ -111,11 +131,54 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	printf("\n");
 }
 
-// _CreatePoints
-void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
+// CreatePoints
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
 {
-	// push random points
-	for (size_t i = 0; i < numPoints; i++)
+	_CreatePoints(points, 0, numPoints);
+}
+
+
+void PrintHello(int a)
+{
+	std::cout << "Hello" << std::endl;
+}
+
+// CreatePoints using worker threads
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads)
+{
+	size_t numPointsInChunk = numPoints / numWorkerThreads;
+
+	size_t startIndex = 0;
+	size_t endIndex = numPoints;
+
+	std::vector<std::thread> threads;
+	threads.resize(numWorkerThreads);
+
+	// create the threads
+	for (size_t i = 0; i < numWorkerThreads; i++)
+	{
+		startIndex = i*numPointsInChunk;
+		endIndex = startIndex + numPointsInChunk;
+
+		endIndex = (i + 1 == numWorkerThreads) ? numPoints : endIndex; // make sure that we cover all the points
+
+		threads[i] = std::thread(_CreatePoints, std::ref(points), startIndex, endIndex);
+	}
+
+	// join all the threads
+	for (size_t i = 0; i < numWorkerThreads; i++)
+	{
+		threads[i].join();
+	}
+}
+
+// CreatePoints
+void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex)
+{
+	//size_t threadId = std::hash<std::thread::id>()(std::this_thread::get_id());
+	//printf("Thread %ull\n", threadId);
+
+	for (size_t i = startIndex; i < endIndex; i++)
 	{
 		agarzon::Vec3& p = points[i];
 
