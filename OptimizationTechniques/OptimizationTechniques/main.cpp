@@ -5,23 +5,40 @@
 
 #include "math/Math.h"
 
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPositions);
+enum class Optimisation
+{
+	OPTIMISATION_NONE,
+
+	OPTIMISATION_THREADS,
+	OPTIMISATION_THREAD_POOL,
+
+	NUM_OPTIMISATIONS
+};
+
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation = Optimisation::OPTIMISATION_NONE);
+void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
 
 int main()
 {
 	size_t NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
 
+	std::cout << "Select Optimisation: ";
+	int o = 0;
+	std::cin >> o;
+	std::cin.ignore();
+	std::cout << std::endl;
+
+	Optimisation optimisation = (o  < (int)Optimisation::NUM_OPTIMISATIONS) ? Optimisation(o) : Optimisation::OPTIMISATION_NONE;
+
 	std::chrono::time_point<std::chrono::system_clock> pointsCreationStart, pointsCreationEnd;
 
-	// points creation
-	pointsCreationStart = std::chrono::system_clock::now();
-	CreatePoints(points, NUM_POINTS);
+	pointsCreationStart = std::chrono::system_clock::now();	
+	CreatePoints(points, NUM_POINTS, optimisation);
 	pointsCreationEnd = std::chrono::system_clock::now();
 
 	// print time results
 	std::cout << "Points creation (seconds): " << std::chrono::duration_cast<std::chrono::seconds>(pointsCreationEnd - pointsCreationStart).count() << std::endl;
-	std::cout << std::endl;
 	std::cout << "Points creation (milliseconds): " << std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count() << std::endl;
 
 	std::cout << "Press any key to continue";
@@ -29,7 +46,29 @@ int main()
 	return 0;
 }
 
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
+void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation /*= OPTIMISATION_NONE */)
+{
+	switch (optimisation)
+	{
+	case Optimisation::OPTIMISATION_NONE:
+	{
+		_CreatePoints(points, numPoints);
+		break;
+	}
+	case Optimisation::OPTIMISATION_THREADS:
+	{
+		break;
+	}
+	case Optimisation::OPTIMISATION_THREAD_POOL:
+	{
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
 {
 	// allocate first
 	points.resize(numPoints);
