@@ -12,6 +12,9 @@ std::mt19937 generator(rd());
 // create a uniform distribution
 std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(1000000.0f, FLT_MAX));
 
+// time points
+std::chrono::time_point<std::chrono::system_clock> pointsCreationStart, pointsCreationEnd;
+
 enum class Optimisation
 {
 	OPTIMISATION_NONE,
@@ -22,6 +25,14 @@ enum class Optimisation
 	NUM_OPTIMISATIONS
 };
 
+const char* optimisationStrings[] =
+{
+	"NONE",
+	"N WORKER THREADS",
+	"THREAD_POOL"
+};
+
+
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation = Optimisation::OPTIMISATION_NONE);
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
 
@@ -31,45 +42,34 @@ int main()
 	size_t NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
 
+	// allocate memory for NUM_POINTS
 	printf("Allocating memory for %d points...\n", NUM_POINTS);
 	points.resize(NUM_POINTS);
 	printf("Memory allocated!\n\n");
 
 	while (true)
 	{
+		// print menu
 		printf("\n");
-		printf("Create Random Points\n");
-		printf("Optimisation None = 0\n");
-		printf("Optimisation N Worker Threads = 1\n");
-		printf("Optimisation ThreadPool = 2\n");
-		printf("\n");
-		printf("Select Optimisation (q = for quiting): ");
+		printf("Create Random Points with Optimisation: \n\n");
+		for (int i = 0; i < (int)Optimisation::NUM_OPTIMISATIONS; i++)
+		{
+			printf("%d = %s\n", i, optimisationStrings[i]);
+		}
+		printf("\nSelect Optimisation OR 'q' for quiting): ");
 
+		// get optimiation type
 		char c;
 		std::cin >> c;
 		std::cin.ignore();
-		if (c == 'q')
-		{
-			// quit
+		if (c == 'q') // quit
 			break;
-		}
-
-		printf("Creating Points...\n");
 
 		int o = atoi(&c);
 		Optimisation optimisation = (o  < (int)Optimisation::NUM_OPTIMISATIONS) ? Optimisation(o) : Optimisation::OPTIMISATION_NONE;
 
-		std::chrono::time_point<std::chrono::system_clock> pointsCreationStart, pointsCreationEnd;
-
-		pointsCreationStart = std::chrono::system_clock::now();
+		// Create points
 		CreatePoints(points, NUM_POINTS, optimisation);
-		pointsCreationEnd = std::chrono::system_clock::now();
-
-		// print time results
-		printf("\n");
-		printf("Points created! Time (seconds): %llu\n", std::chrono::duration_cast<std::chrono::seconds>(pointsCreationEnd - pointsCreationStart).count());
-		printf("Points created! Time (milliseconds): %llu\n", std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count());
-		printf("\n");
 	}
 
 	return 0;
@@ -81,7 +81,10 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	{
 	case Optimisation::OPTIMISATION_NONE:
 	{
+		printf("Creating Points...\n");
+		pointsCreationStart = std::chrono::system_clock::now();
 		_CreatePoints(points, numPoints);
+		pointsCreationEnd = std::chrono::system_clock::now();
 		break;
 	}
 	case Optimisation::OPTIMISATION_THREADS:
@@ -95,6 +98,12 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	default:
 		break;
 	}
+
+	// print time results
+	printf("\n");
+	printf("Points created! Time (seconds): %llu\n", std::chrono::duration_cast<std::chrono::seconds>(pointsCreationEnd - pointsCreationStart).count());
+	printf("Points created! Time (milliseconds): %llu\n", std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart).count());
+	printf("\n");
 }
 
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
