@@ -166,10 +166,10 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t n
 	}
 
 	// join all the threads
-	for (size_t i = 0; i < numWorkerThreads; i++)
+	std::for_each(threads.begin(), threads.end(), [](std::thread & thread)
 	{
-		threads[i].join();
-	}
+		thread.join();
+	});
 }
 
 // CreatePoints
