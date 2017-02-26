@@ -212,12 +212,13 @@ void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, s
 
 		endIndex = (i + 1 == numAsyncTasks) ? numPoints : endIndex; // make sure that we cover all the points
 
-		auto ft = std::async(&_CreatePoints, std::ref(points), startIndex, endIndex);
+		auto ft = std::async(std::launch::async, &_CreatePoints, std::ref(points), startIndex, endIndex);
 		futures[i] = std::move(ft);
 	}
 
 	// At this point, current thread will wait to all the tasks to be done
-	// This is mainly because the destructor of each future will force the execution of the task
+	// This is mainly because the destructor of each future will force the execution of the task...
+	// ... but only if the launch policy is specified as std::launch::async instead of std::launch::deferred or default (std::launch::async | std::launch::deferred)
 }
 
 // CreatePoints
