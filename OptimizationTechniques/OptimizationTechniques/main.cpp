@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include<thread>
+#include<future>
 
 #include "math/Math.h"
 
@@ -25,6 +26,7 @@ enum class Optimisation
 	OPTIMISATION_NONE,
 
 	OPTIMISATION_THREADS,
+	OPTIMISATION_ASYNC_TASKS,
 	OPTIMISATION_THREAD_POOL,
 
 	NUM_OPTIMISATIONS
@@ -34,6 +36,7 @@ const char* optimisationStrings[] =
 {
 	"NONE",
 	"N WORKER THREADS",
+	"N ASYNC TASKS",
 	"THREAD_POOL"
 };
 
@@ -41,6 +44,7 @@ const char* optimisationStrings[] =
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation);
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads);
+void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numAsyncTasks);
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex);
 
 std::string GetTimeStr(TimePoint start, TimePoint end);
@@ -117,6 +121,22 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 
 		break;
 	}
+	case Optimisation::OPTIMISATION_ASYNC_TASKS:
+	{
+		// get the number of async tasks from the user
+		printf("Number of async tasks: ");
+		char buffer[256];
+		std::cin.getline(buffer, 256);
+		size_t numTasks = std::max(std::stoi(buffer), 1);
+
+		// create points
+		printf("Creating Points...\n");
+		pointsCreationStart = std::chrono::system_clock::now();
+		CreatePointsByTasks(points, numPoints, numTasks);
+		pointsCreationEnd = std::chrono::system_clock::now();
+
+		break;
+	}
 	case Optimisation::OPTIMISATION_THREAD_POOL:
 	{
 		break;
@@ -170,6 +190,34 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t n
 	{
 		thread.join();
 	});
+}
+
+// CreatePoints using async tasks
+void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numAsyncTasks)
+{
+	size_t numPointsInChunk = numPoints / numAsyncTasks;
+
+	size_t startIndex = 0;
+	size_t endIndex = numPoints;
+
+	// the future for each task
+	std::vector<std::future<void>> futures;
+	futures.resize(numAsyncTasks);
+
+	// create the tasks
+	for (size_t i = 0; i < numAsyncTasks; i++)
+	{
+		startIndex = i*numPointsInChunk;
+		endIndex = startIndex + numPointsInChunk;
+
+		endIndex = (i + 1 == numAsyncTasks) ? numPoints : endIndex; // make sure that we cover all the points
+
+		auto ft = std::async(&_CreatePoints, std::ref(points), startIndex, endIndex);
+		futures[i] = std::move(ft);
+	}
+
+	// At this point, current thread will wait to all the tasks to be done
+	// This is mainly because the destructor of each future will force the execution of the task
 }
 
 // CreatePoints
