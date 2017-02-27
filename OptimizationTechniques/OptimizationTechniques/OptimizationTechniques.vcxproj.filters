@@ -16,6 +16,9 @@
     <Filter Include="Source Files\math">
       <UniqueIdentifier>{ac5f8f00-b297-436d-acb4-4648401caffb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ThreadPool">
+      <UniqueIdentifier>{c09998a0-4b95-4ea8-8e1a-0483c89033cc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -25,6 +28,9 @@
   <ItemGroup>
     <ClInclude Include="src\math\Math.h">
       <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThreadPool\ThreadPool.h">
+      <Filter>Source Files\ThreadPool</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

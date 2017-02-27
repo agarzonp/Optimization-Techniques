@@ -8,6 +8,7 @@
 #include<future>
 
 #include "math/Math.h"
+#include "ThreadPool/ThreadPool.h"
 
 // seed mt19937 random number generator
 std::random_device rd;
@@ -139,7 +140,22 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	}
 	case Optimisation::OPTIMISATION_THREAD_POOL:
 	{
-		break;
+		printf("Creating Points...\n");
+		pointsCreationStart = std::chrono::system_clock::now();
+
+		ThreadPool threadPool;
+		for (int i = 0; i < 4; i++)
+		{
+			threadPool.AddTask(ThreadTask(i)); // will figure out later what ThreadTask really is
+		}
+		
+		pointsCreationEnd = std::chrono::system_clock::now(); // FIXME: useless here
+
+		// FIXME: dirty hack to make sure that working threads are running
+		std::this_thread::yield(); 
+		std::this_thread::yield();
+
+		break; // At this point all threads will join
 	}
 	default:
 		break;
