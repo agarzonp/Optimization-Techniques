@@ -141,18 +141,25 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	case Optimisation::OPTIMISATION_THREAD_POOL:
 	{
 		printf("Creating Points...\n");
+
 		pointsCreationStart = std::chrono::system_clock::now();
 
+		// Add tasks to the thread pool
 		ThreadPool threadPool;
-		for (int i = 0; i < 4; i++)
+		std::vector<ThreadTaskResult> results;
+		for (int i = 0; i < 10000; i++)
 		{
-			threadPool.AddTask(ThreadTask(i)); // will figure out later what ThreadTask really is
+			ThreadTaskResult result = threadPool.AddTask(ThreadTask(i)); // will figure out later what ThreadTask really is
+			results.push_back(std::move(result));
 		}
 		
-		pointsCreationEnd = std::chrono::system_clock::now(); // FIXME: useless here
+		// wait for all the results
+		for (auto result : results)
+		{			
+			result.WaitForResult();
+		}
 
-		// FIXME: dirty hack to make sure that working threads are done with all the tasks
-		std::this_thread::sleep_for(std::chrono::seconds(3)); 
+		pointsCreationEnd = std::chrono::system_clock::now();
 
 		break;
 	}

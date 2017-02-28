@@ -4,27 +4,84 @@
 #include <thread>
 #include <deque>
 #include<vector>
-
 #include <mutex>
+#include <cassert>
 
+// Will figure out later what ThreadTaskResult really is
+class ThreadTaskResult
+{
+	std::future<bool> doneFuture;
+	int taskId_ = -1;
+
+public:
+
+	ThreadTaskResult(){}
+
+	ThreadTaskResult(ThreadTaskResult& other)
+	{
+		doneFuture = std::move(other.doneFuture);
+		taskId_ = other.taskId_;
+	}
+
+	ThreadTaskResult(ThreadTaskResult&& other)
+	{
+		doneFuture = std::move(other.doneFuture);
+		taskId_ = other.taskId_;
+	}
+
+	void Set(std::future<bool>& future, int taskId_)
+	{
+		doneFuture = std::move(future);
+		this->taskId_ = taskId_;
+	}
+
+	void WaitForResult()
+	{
+		//printf("Thread %ull waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId_);
+		bool done = doneFuture.get();
+		assert(done);
+		//printf("Thread %ull got result and no longer waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId_);
+	}
+};
 
 // Will figure out later what ThreadTask really is, probably some kind of callable object
 class ThreadTask 
 {
 	int id_ = -1;
 
+	bool done = false;
+	std::promise<bool> donePromise;
+
 public:
 	
 	ThreadTask(int id) : id_(id){}
 
+	ThreadTask(ThreadTask&& other)
+	{
+		id_ = other.id_;
+		done = other.done;
+		donePromise = std::move(other.donePromise);
+	}
+
 	void DoTask()
 	{
+		assert(!done);
+
 		for (int i = 0; i < 5; i++)
 		{
-			printf("Processing Task %d by thread %d\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
+			printf("Processing Task %d by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
 		}
-		printf("Task %d done by thread %d\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
+		printf("Task %d done by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
+
+		done = true;
+		donePromise.set_value(done);
 	};
+
+	
+	void SetFutureResult(ThreadTaskResult& result)
+	{
+		result.Set(donePromise.get_future(), id_);
+	}
 };
 
 class ThreadPool
@@ -45,10 +102,12 @@ class ThreadPool
 	std::condition_variable newTaskCondition;
 
 public:
+
 	ThreadPool()
 	{
 		Init();
 	};
+
 	~ThreadPool() 
 	{
 		terminate = true;
@@ -69,13 +128,19 @@ public:
 	};
 
 	// Add a task to the queue
-	void AddTask(ThreadTask& task)
+	ThreadTaskResult AddTask(ThreadTask& task)
 	{
 		std::lock_guard<std::mutex> lock(tasksQueueMutex);
-		tasks.push_back(task);
+		tasks.push_back(std::move(task));
 
-		// notify to one thread waiting on this condition
+		// store future result
+		ThreadTaskResult taskResult; 
+		tasks.back().SetFutureResult(taskResult);
+
+		// notify to one thread waiting on new task condition
 		newTaskCondition.notify_one();
+
+		return taskResult;
 	}
 
 private:
@@ -111,7 +176,7 @@ private:
 
 			// When a thread is notified to wake up the mutex will be lock, so thread safe to front() and pop()
 
-			ThreadTask task = tasks.front(); // move semantics needed?
+			ThreadTask task = std::move(tasks.front());
 			tasks.pop_front();
 
 			// No need to protect the queue anymore
