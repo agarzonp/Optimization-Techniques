@@ -151,11 +151,10 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 		
 		pointsCreationEnd = std::chrono::system_clock::now(); // FIXME: useless here
 
-		// FIXME: dirty hack to make sure that working threads are running
-		std::this_thread::yield(); 
-		std::this_thread::yield();
+		// FIXME: dirty hack to make sure that working threads are done with all the tasks
+		std::this_thread::sleep_for(std::chrono::seconds(3)); 
 
-		break; // At this point all threads will join
+		break;
 	}
 	default:
 		break;
