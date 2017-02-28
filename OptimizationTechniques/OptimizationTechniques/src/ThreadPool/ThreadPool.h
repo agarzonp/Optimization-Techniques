@@ -5,6 +5,8 @@
 #include <deque>
 #include<vector>
 
+#include <mutex>
+
 
 // Will figure out later what ThreadTask really is, probably some kind of callable object
 class ThreadTask 
@@ -17,6 +19,10 @@ public:
 
 	void DoTask()
 	{
+		for (int i = 0; i < 5; i++)
+		{
+			printf("Processing Task %d\n", id_);
+		}
 		printf("Task %d done\n", id_);
 	};
 };
@@ -24,13 +30,16 @@ public:
 class ThreadPool
 {
 	// tasks
-	std::deque<ThreadTask> tasks; // FIXME: Make it thread safe!
+	std::deque<ThreadTask> tasks; // TODO: What about a thread safe queue?
 
 	// ThredPool terminate condition
 	std::atomic_bool terminate = false;
 	
 	// worker threads
 	std::vector<std::thread> workerThreads;
+
+	// tasks queue mutex
+	std::mutex tasksQueueMutex;
 
 public:
 	ThreadPool()
@@ -56,7 +65,7 @@ public:
 
 	void AddTask(ThreadTask& task)
 	{
-		// FIXME: Make the lines below thread safe
+		std::lock_guard<std::mutex> lock(tasksQueueMutex);
 		tasks.push_back(task);
 	}
 
@@ -78,17 +87,21 @@ private:
 	{
 		while (!terminate)
 		{
-			// FIXME: Make the lines below thread safe, so there are no race conditions!
-			//
+			std::unique_lock<std::mutex> lock(tasksQueueMutex);
+
 			if (tasks.size() > 0)
 			{
-				ThreadTask& task = tasks.front();
+				ThreadTask task = tasks.front(); // move semantics needed?
 				tasks.pop_front();
 
-				task.DoTask(); // how do we synchronize if needed with the submitter when the task is done?
+				lock.unlock();
+
+				task.DoTask(); // how do we synchronize if needed with the task submitter when the task is done?
 			}
 			else
 			{
+				lock.unlock();
+
 				// wait some time and allow other threads to run
 				std::this_thread::yield();
 			}
