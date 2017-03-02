@@ -183,8 +183,16 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 		ThreadPool threadPool;
 		std::vector<ThreadTaskResult> results;
 
+		std::vector< std::function<void()> > functions; // FIXME: Do we really need to store the functions?
+		functions.resize(12);
+		for (int i = 0; i < 10; i += 3)
 		{
 			functions[i] = std::move(std::bind(DoTask, i));
+			functions[i + 1] = std::move(std::bind(DoTaskWithFloat, i  + 1, float(i + 1)));
+			functions[i + 2] = std::move(std::bind(DoTaskWithInteger, i + 2, i + 2));
+			ThreadTaskResult resultA = threadPool.AddTask(std::move(functions[i]));
+			ThreadTaskResult resultB = threadPool.AddTask(std::move(functions[i + 1]));
+			ThreadTaskResult resultC = threadPool.AddTask(std::move(functions[i + 2]));
 			results.push_back(std::move(resultA));
 			results.push_back(std::move(resultB));
 			results.push_back(std::move(resultC));
