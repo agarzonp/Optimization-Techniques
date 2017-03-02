@@ -92,6 +92,41 @@ int main()
 	return 0;
 }
 
+void DoTask(int id)
+{
+	for (int i = 0; i < 5; i++)
+	{
+		printf("Doing task %d\n", id);
+	}
+
+	printf("Task %d done!\n", id);
+}
+
+void DoTaskWithFloat(int id, float f)
+{
+	for (int i = 0; i < 5; i++)
+	{
+		printf("Doing task %d using float %f\n ", id, f);
+	}
+
+	printf("Task %d done!\n", id);
+}
+
+int DoTaskWithInteger(int id, int d)
+{
+	int value = 0;
+	for (int i = 0; i < 5; i++)
+	{
+		printf("Doing task %d using integer %d. Value: %d\n ", id, d, value);
+		value++;
+	}
+
+	value *= d;
+	printf("Task %d done! Value: %d\n", id, value);
+
+	return value;
+}
+
 // CreatePoints
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation)
 {
@@ -147,12 +182,14 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 		// Add tasks to the thread pool
 		ThreadPool threadPool;
 		std::vector<ThreadTaskResult> results;
-		for (int i = 0; i < 10000; i++)
+
 		{
-			ThreadTaskResult result = threadPool.AddTask(ThreadTask(i)); // will figure out later what ThreadTask really is
-			results.push_back(std::move(result));
+			functions[i] = std::move(std::bind(DoTask, i));
+			results.push_back(std::move(resultA));
+			results.push_back(std::move(resultB));
+			results.push_back(std::move(resultC));
 		}
-		
+
 		// wait for all the results
 		for (auto result : results)
 		{			

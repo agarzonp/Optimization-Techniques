@@ -44,7 +44,9 @@ public:
 	}
 };
 
+
 // Will figure out later what ThreadTask really is, probably some kind of callable object
+
 class ThreadTask 
 {
 	int id_ = -1;
@@ -52,26 +54,93 @@ class ThreadTask
 	bool done = false;
 	std::promise<bool> donePromise;
 
+	// Wrap the function that will actually do the task 
+	//
+	struct ThreadTaskFunction
+	{
+		virtual void call() = 0; 
+		virtual ~ThreadTaskFunction()
+		{
+		};
+	};
+
+	template <typename Function>
+	struct ThreadTaskFunctionWrapper : public ThreadTaskFunction
+	{
+		Function f;
+
+		ThreadTaskFunctionWrapper(Function&& f_) 
+			: f(std::move(f_)) 
+		{
+		}
+
+		~ThreadTaskFunctionWrapper()
+		{
+		}
+
+		ThreadTaskFunctionWrapper& operator=(ThreadTaskFunctionWrapper&& other)
+		{
+			f = std::move(f);
+			return *this;
+		}
+
+		void call() override 
+		{ 
+			f(); // Note: return type and arguments are wrapped if it was added with std::bind
+		} 
+	};
+
+	std::unique_ptr<ThreadTaskFunction> func;
+
 public:
 	
-	ThreadTask(int id) : id_(id){}
+	ThreadTask() = default;
+
+	~ThreadTask() 
+	{
+	}
+
+	template<typename Function>
+	ThreadTask(Function&& f)
+		: func(new ThreadTaskFunctionWrapper<Function>(std::move(f)))
+	{
+	}
+
+	template<typename Function>
+	ThreadTask(Function&& f, int id_) 
+		: func(new ThreadTaskFunctionWrapper<Function>(std::move(f)))
+		, id (id_)
+	{
+	}
 
 	ThreadTask(ThreadTask&& other)
 	{
 		id_ = other.id_;
 		done = other.done;
 		donePromise = std::move(other.donePromise);
+		func = std::move(other.func);
+	}
+
+	ThreadTask& operator=(ThreadTask&& other)
+	{
+		id_ = other.id_;
+		done = other.done;
+		donePromise = std::move(other.donePromise);
+		func = std::move(other.func);
+
+		return (*this);
 	}
 
 	void DoTask()
 	{
 		assert(!done);
 
-		for (int i = 0; i < 5; i++)
-		{
-			printf("Processing Task %d by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
-		}
-		printf("Task %d done by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
+		//printf("Processing Task %d by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
+
+		// call the function
+		func->call();
+
+		//printf("Task %d done by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
 
 		done = true;
 		donePromise.set_value(done);
@@ -128,10 +197,11 @@ public:
 	};
 
 	// Add a task to the queue
-	ThreadTaskResult AddTask(ThreadTask& task)
+	//template<typename Function>
+	ThreadTaskResult AddTask(std::function<void()>&& function)
 	{
 		std::lock_guard<std::mutex> lock(tasksQueueMutex);
-		tasks.push_back(std::move(task));
+		tasks.push_back(std::move(ThreadTask(function)));
 
 		// store future result
 		ThreadTaskResult taskResult; 
