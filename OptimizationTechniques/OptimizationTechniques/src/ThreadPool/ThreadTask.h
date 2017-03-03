@@ -21,15 +21,17 @@ class ThreadTask
 	{
 		Function f;
 
+		TaskWrapper() = default;
+
+		TaskWrapper(const Function& f_) = delete;
 		TaskWrapper(Function&& f_)
 			: f(std::move(f_))
 		{
 		}
 
-		~TaskWrapper()
-		{
-		}
+		~TaskWrapper(){}
 
+		TaskWrapper& operator=(TaskWrapper& other) = delete;
 		TaskWrapper& operator=(TaskWrapper&& other)
 		{
 			f = std::move(f);
@@ -47,10 +49,7 @@ class ThreadTask
 public:
 
 	ThreadTask() = default;
-
-	~ThreadTask()
-	{
-	}
+	~ThreadTask(){}
 
 	template<typename Function>
 	ThreadTask(Function&& f)
@@ -65,12 +64,14 @@ public:
 	{
 	}
 
+	ThreadTask(const ThreadTask& other) = delete;
 	ThreadTask(ThreadTask&& other)
 	{
 		id_ = other.id_;
 		func = std::move(other.func);
 	}
 
+	ThreadTask& operator=(ThreadTask& other) = delete;
 	ThreadTask& operator=(ThreadTask&& other)
 	{
 		id_ = other.id_;
@@ -79,7 +80,7 @@ public:
 		return (*this);
 	}
 
-	void DoTask()
+	void Do()
 	{
 		//printf("Processing Task %d by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
 

@@ -12,7 +12,6 @@ class ThreadTaskResult
 	// 
 	struct TaskResult
 	{
-		TaskResult() {}
 		virtual ~TaskResult() {}
 		virtual void* WaitForResult() = 0;
 	};
@@ -20,9 +19,19 @@ class ThreadTaskResult
 	template <typename T>
 	struct TaskResultWrapper : public TaskResult
 	{
+		TaskResultWrapper() = default;
+
+		TaskResultWrapper(const std::future<T>& future) = delete;
 		TaskResultWrapper(std::future<T>&& future)
 			: future(std::move(future))
 		{
+		}
+
+		TaskResultWrapper& operator=(const TaskResultWrapper& other) = delete;
+		TaskResultWrapper& operator=(TaskResultWrapper&& other)
+		{
+			future = std::move(other.future);
+			result = std::move(other.result);
 		}
 
 		void* WaitForResult() override
@@ -45,9 +54,18 @@ class ThreadTaskResult
 	template <>
 	struct TaskResultWrapper<void> : public TaskResult
 	{
+		TaskResultWrapper() = default;
+
+		TaskResultWrapper(const std::future<void>& future) = delete;
 		TaskResultWrapper(std::future<void>&& future)
 			: future(std::move(future))
 		{
+		}
+
+		TaskResultWrapper& operator=(const TaskResultWrapper& other) = delete;
+		TaskResultWrapper& operator=(TaskResultWrapper&& other)
+		{
+			future = std::move(other.future);
 		}
 
 		void* WaitForResult() override
@@ -68,15 +86,29 @@ class ThreadTaskResult
 
 public:
 
-	ThreadTaskResult() {}
+	ThreadTaskResult() = default;
+
+	ThreadTaskResult(const ThreadTaskResult& other) = delete;
+	ThreadTaskResult(ThreadTaskResult&& other)
+	{
+		taskId = other.taskId;
+		result = std::move(other.result);
+	}
 
 	template<typename T>
-	ThreadTaskResult(std::future<T>& future, int taskId_)
+	ThreadTaskResult(std::future<T>&& future, int taskId_)
 		: result(new TaskResultWrapper<T>(std::move(future)))
 		, taskId(taskId_)
 	{
 	}
 
+	ThreadTaskResult& operator=(const ThreadTaskResult& other) = delete;
+	ThreadTaskResult& operator=(ThreadTaskResult&& other)
+	{
+		taskId = other.taskId;
+		result = std::move(other.result);
+		return *this;
+	}
 
 	void WaitForResult(void*& out)
 	{

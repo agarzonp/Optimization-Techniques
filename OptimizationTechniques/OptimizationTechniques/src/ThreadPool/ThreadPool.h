@@ -34,6 +34,9 @@ public:
 		Init();
 	};
 
+	ThreadPool(const ThreadPool& other) = delete;
+	ThreadPool& operator=(const ThreadPool& other) = delete;
+
 	~ThreadPool() 
 	{
 		terminate = true;
@@ -116,7 +119,7 @@ private:
 			lock.unlock();
 
 			// do the task
-			task.DoTask();
+			task.Do();
 		}
 	}
 };
