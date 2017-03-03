@@ -21,6 +21,9 @@ std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(
 typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
 TimePoint pointsCreationStart, pointsCreationEnd;
 
+// thread pool
+ThreadPool threadPool;
+
 // Optimisation type
 enum class Optimisation
 {
@@ -46,6 +49,7 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads);
 void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numAsyncTasks);
+void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numTasks);
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex);
 
 std::string GetTimeStr(TimePoint start, TimePoint end);
@@ -90,41 +94,6 @@ int main()
 	}
 
 	return 0;
-}
-
-void DoTask(int id)
-{
-	for (int i = 0; i < 5; i++)
-	{
-		printf("Doing task %d\n", id);
-	}
-
-	printf("Task %d done!\n", id);
-}
-
-void DoTaskWithFloat(int id, float f)
-{
-	for (int i = 0; i < 5; i++)
-	{
-		printf("Doing task %d using float %f\n ", id, f);
-	}
-
-	printf("Task %d done!\n", id);
-}
-
-int DoTaskWithInteger(int id, int d)
-{
-	int value = 0;
-	for (int i = 0; i < 5; i++)
-	{
-		printf("Doing task %d using integer %d. Value: %d\n ", id, d, value);
-		value++;
-	}
-
-	value *= d;
-	printf("Task %d done! Value: %d\n", id, value);
-
-	return value;
 }
 
 // CreatePoints
@@ -175,36 +144,16 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 	}
 	case Optimisation::OPTIMISATION_THREAD_POOL:
 	{
+		// get the number of async tasks from the user
+		printf("Number of tasks: ");
+		char buffer[256];
+		std::cin.getline(buffer, 256);
+		size_t numTasks = std::max(std::stoi(buffer), 1);
+
+		// create points
 		printf("Creating Points...\n");
-
 		pointsCreationStart = std::chrono::system_clock::now();
-
-		// Add tasks to the thread pool
-		ThreadPool threadPool;
-		std::vector<ThreadTaskResult> results;
-
-		std::vector< std::function<void()> > functions; // FIXME: Do we really need to store the functions?
-		functions.resize(12);
-		for (int i = 0; i < 10; i += 3)
-		{
-			functions[i] = std::move(std::bind(DoTask, i));
-			functions[i + 1] = std::move(std::bind(DoTaskWithFloat, i  + 1, float(i + 1)));
-			functions[i + 2] = std::move(std::bind(DoTaskWithInteger, i + 2, i + 2));
-			ThreadTaskResult resultA = threadPool.AddTask(std::move(functions[i]));
-			ThreadTaskResult resultB = threadPool.AddTask(std::move(functions[i + 1]));
-			ThreadTaskResult resultC = threadPool.AddTask(std::move(functions[i + 2]));
-			results.push_back(std::move(resultA));
-			results.push_back(std::move(resultB));
-			results.push_back(std::move(resultC));
-		}
-
-		// wait for all the results
-		void* r = nullptr;
-		for (auto& result : results)
-		{				
-			result.WaitForResult(r);
-		}
-
+		CreatePointsByThreadPool(points, numPoints, numTasks);
 		pointsCreationEnd = std::chrono::system_clock::now();
 
 		break;
@@ -287,6 +236,40 @@ void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, s
 	// At this point, current thread will wait to all the tasks to be done
 	// This is mainly because the destructor of each future will force the execution of the task...
 	// ... but only if the launch policy is specified as std::launch::async instead of std::launch::deferred or default (std::launch::async | std::launch::deferred)
+}
+
+// Create points using ThreadPool
+void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numTasks)
+{
+	size_t numPointsInChunk = numPoints / numTasks;
+
+	size_t startIndex = 0;
+	size_t endIndex = numPoints;
+
+	std::vector<ThreadTaskResult> results;
+
+	std::vector< std::function<void()> > functions; // FIXME: Do we really need to store the functions?
+	functions.resize(numTasks);
+
+	// add tasks to the pool
+	for (size_t i = 0; i < numTasks; i++)
+	{
+		startIndex = i*numPointsInChunk;
+		endIndex = startIndex + numPointsInChunk;
+
+		endIndex = (i + 1 == numTasks) ? numPoints : endIndex; // make sure that we cover all the points
+
+		functions[i] = std::move(std::bind(&_CreatePoints, std::ref(points), startIndex, endIndex));
+		auto result = threadPool.AddTask(std::bind(functions[i]));
+		results.push_back(std::move(result));
+	}
+
+	// wait for all the results
+	void* r = nullptr;
+	for (auto& result : results)
+	{
+		result.WaitForResult(r);
+	}
 }
 
 // CreatePoints
