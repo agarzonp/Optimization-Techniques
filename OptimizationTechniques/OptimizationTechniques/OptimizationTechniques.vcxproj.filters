@@ -32,5 +32,11 @@
     <ClInclude Include="src\ThreadPool\ThreadPool.h">
       <Filter>Source Files\ThreadPool</Filter>
     </ClInclude>
+    <ClInclude Include="src\ThreadPool\ThreadTaskResult.h">
+      <Filter>Source Files\ThreadPool</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ThreadPool\ThreadTask.h">
+      <Filter>Source Files\ThreadPool</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
