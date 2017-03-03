@@ -100,9 +100,6 @@ class ThreadTask
 {
 	int id_ = -1;
 
-	bool done = false;
-	std::promise<bool> donePromise;
-
 	// Wrap the function that will actually do the task 
 	//
 	struct ThreadTaskFunction
@@ -133,7 +130,7 @@ class ThreadTask
 
 		void call() override 
 		{ 
-			f(); // Note: return type and arguments are wrapped if it was added with std::bind
+			f(); // Note: return type and arguments are wrapped
 		} 
 	};
 
@@ -163,16 +160,12 @@ public:
 	ThreadTask(ThreadTask&& other)
 	{
 		id_ = other.id_;
-		done = other.done;
-		donePromise = std::move(other.donePromise);
 		func = std::move(other.func);
 	}
 
 	ThreadTask& operator=(ThreadTask&& other)
 	{
 		id_ = other.id_;
-		done = other.done;
-		donePromise = std::move(other.donePromise);
 		func = std::move(other.func);
 
 		return (*this);
@@ -180,17 +173,12 @@ public:
 
 	void DoTask()
 	{
-		assert(!done);
-
 		//printf("Processing Task %d by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
 
 		// call the function
 		func->call();
 
 		//printf("Task %d done by thread %ull\n", id_, std::hash<std::thread::id>()(std::this_thread::get_id()));
-
-		done = true;
-		donePromise.set_value(done);
 	};
 };
 
