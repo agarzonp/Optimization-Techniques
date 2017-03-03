@@ -199,9 +199,10 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 		}
 
 		// wait for all the results
-		for (auto result : results)
-		{			
-			result.WaitForResult();
+		void* r = nullptr;
+		for (auto& result : results)
+		{				
+			result.WaitForResult(r);
 		}
 
 		pointsCreationEnd = std::chrono::system_clock::now();

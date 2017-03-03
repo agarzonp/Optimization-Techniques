@@ -8,45 +8,94 @@
 #include <cassert>
 
 // Will figure out later what ThreadTaskResult really is
+
 class ThreadTaskResult
 {
-	std::future<bool> doneFuture;
-	int taskId_ = -1;
+	struct ResultBase
+	{
+		ResultBase() {}
+		virtual ~ResultBase() {}
+		virtual void* WaitForResult() = 0;
+	};
+
+	template <typename T>
+	struct Result : public ResultBase
+	{
+		Result(std::future<T>&& future)
+			: future(std::move(future))
+		{
+		}
+
+		void* WaitForResult() override
+		{
+			result = std::move(Get());
+			return &result;
+		}
+
+		template<typename T>
+		T Get()
+		{
+			return future.get();
+		}
+
+		std::future<T> future;
+		T result;
+	};
+
+	template <>
+	struct Result<void> : public ResultBase
+	{
+		Result(std::future<void>&& future)
+			: future(std::move(future))
+		{
+		}
+
+		void* WaitForResult() override
+		{
+			Get();
+			return nullptr;
+		}
+
+		void Get()
+		{
+			future.get();
+		}
+
+		std::future<void> future;
+	};
+
+	std::unique_ptr<ResultBase> result;
+	
+	int taskId = -1;
 
 public:
 
-	ThreadTaskResult(){}
+	ThreadTaskResult() {}
 
-	ThreadTaskResult(ThreadTaskResult& other)
+	template<typename T>
+	ThreadTaskResult(std::future<T>& future, int taskId_)
+		: result( new Result<T>(std::move(future)))
+		, taskId(taskId_)
 	{
-		doneFuture = std::move(other.doneFuture);
-		taskId_ = other.taskId_;
 	}
 
-	ThreadTaskResult(ThreadTaskResult&& other)
-	{
-		doneFuture = std::move(other.doneFuture);
-		taskId_ = other.taskId_;
-	}
 
-	void Set(std::future<bool>& future, int taskId_)
+	void WaitForResult(void*& out)
 	{
-		doneFuture = std::move(future);
-		this->taskId_ = taskId_;
-	}
+		//printf("Thread %ull waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId);
 
-	void WaitForResult()
-	{
-		//printf("Thread %ull waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId_);
-		bool done = doneFuture.get();
-		assert(done);
-		//printf("Thread %ull got result and no longer waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId_);
+		void* r = result->WaitForResult();
+		if (out)
+		{
+			out = r;
+		}
+
+		//printf("Thread %ull got result and no longer waiting for task %d\n", std::hash<std::thread::id>()(std::this_thread::get_id()), taskId);
 	}
 };
 
 
 // Will figure out later what ThreadTask really is, probably some kind of callable object
-
 class ThreadTask 
 {
 	int id_ = -1;
@@ -59,9 +108,7 @@ class ThreadTask
 	struct ThreadTaskFunction
 	{
 		virtual void call() = 0; 
-		virtual ~ThreadTaskFunction()
-		{
-		};
+		virtual ~ThreadTaskFunction(){};
 	};
 
 	template <typename Function>
@@ -70,7 +117,7 @@ class ThreadTask
 		Function f;
 
 		ThreadTaskFunctionWrapper(Function&& f_) 
-			: f(std::move(f_)) 
+			: f(std::move(f_))
 		{
 		}
 
@@ -145,12 +192,6 @@ public:
 		done = true;
 		donePromise.set_value(done);
 	};
-
-	
-	void SetFutureResult(ThreadTaskResult& result)
-	{
-		result.Set(donePromise.get_future(), id_);
-	}
 };
 
 class ThreadPool
@@ -197,15 +238,21 @@ public:
 	};
 
 	// Add a task to the queue
-	//template<typename Function>
-	ThreadTaskResult AddTask(std::function<void()>&& function)
+	template<typename Function>
+	ThreadTaskResult AddTask(Function&& function)
 	{
-		std::lock_guard<std::mutex> lock(tasksQueueMutex);
-		tasks.push_back(std::move(ThreadTask(function)));
+		// wrap the callable object into a packaged_task
+		typedef typename std::result_of<Function()>::type ResultType;
+		std::packaged_task< ResultType() > task(std::move(function));
 
-		// store future result
-		ThreadTaskResult taskResult; 
-		tasks.back().SetFutureResult(taskResult);
+		// loct the queue
+		std::lock_guard<std::mutex> lock(tasksQueueMutex);
+
+		// store the future result 
+		ThreadTaskResult taskResult(task.get_future(), tasks.size());
+
+		// add the task to the queue
+		tasks.push_back(std::move(ThreadTask(std::move(task))));
 
 		// notify to one thread waiting on new task condition
 		newTaskCondition.notify_one();
@@ -252,7 +299,8 @@ private:
 			// No need to protect the queue anymore
 			lock.unlock();
 
-			task.DoTask(); // how do we synchronize if needed with the task submitter when the task is done?
+			// do the task
+			task.DoTask();
 		}
 	}
 };
