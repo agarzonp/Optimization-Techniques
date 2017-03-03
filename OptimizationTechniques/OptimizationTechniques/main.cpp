@@ -47,7 +47,7 @@ const char* optimisationStrings[] =
 // function declarations
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation);
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints);
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads);
+void CreatePointsByThreads(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads);
 void CreatePointsByTasks(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numAsyncTasks);
 void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numTasks);
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex);
@@ -121,7 +121,7 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 		// create points
 		printf("Creating Points...\n");
 		pointsCreationStart = std::chrono::system_clock::now();
-		CreatePoints(points, numPoints, numWorkerThreads);
+		CreatePointsByThreads(points, numPoints, numWorkerThreads);
 		pointsCreationEnd = std::chrono::system_clock::now();
 
 		break;
@@ -181,7 +181,7 @@ void PrintHello(int a)
 }
 
 // CreatePoints using worker threads
-void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads)
+void CreatePointsByThreads(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads)
 {
 	size_t numPointsInChunk = numPoints / numWorkerThreads;
 
@@ -248,9 +248,6 @@ void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoin
 
 	std::vector<ThreadTaskResult> results;
 
-	std::vector< std::function<void()> > functions; // FIXME: Do we really need to store the functions?
-	functions.resize(numTasks);
-
 	// add tasks to the pool
 	for (size_t i = 0; i < numTasks; i++)
 	{
@@ -259,8 +256,8 @@ void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoin
 
 		endIndex = (i + 1 == numTasks) ? numPoints : endIndex; // make sure that we cover all the points
 
-		functions[i] = std::move(std::bind(&_CreatePoints, std::ref(points), startIndex, endIndex));
-		auto result = threadPool.AddTask(std::bind(functions[i]));
+		auto task = std::bind(&_CreatePoints, std::ref(points), startIndex, endIndex);
+		auto result = threadPool.AddTask(std::bind(task));
 		results.push_back(std::move(result));
 	}
 
