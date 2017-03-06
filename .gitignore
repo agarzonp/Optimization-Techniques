@@ -1,5 +1,5 @@
-OptimizationTechniques/Concurrency/Debug
-OptimizationTechniques/Concurrency/Release
+Concurrency/Debug
+Concurrency/Release
 *.suo
-OptimizationTechniques/Concurrency/Concurrency.VC.VC.opendb
+Concurrency/Concurrency.VC.VC.opendb
 *.db
