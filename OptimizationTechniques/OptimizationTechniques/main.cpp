@@ -20,6 +20,7 @@ std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(
 // time points
 typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
 TimePoint pointsCreationStart, pointsCreationEnd;
+std::chrono::milliseconds totalPointsCreationTime;
 
 // thread pool
 ThreadPool threadPool;
@@ -53,6 +54,7 @@ void CreatePointsByThreadPool(std::vector<agarzon::Vec3>& points, size_t numPoin
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex);
 
 std::string GetTimeStr(TimePoint start, TimePoint end);
+std::string GetTimeStr(std::chrono::milliseconds time);
 
 // main
 int main()
@@ -60,7 +62,8 @@ int main()
 	// The set of points
 	size_t NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
-
+	std::vector<agarzon::Vec3> pointsB;
+	std::vector<agarzon::Vec3> pointsC;
 	size_t m = sizeof(agarzon::Vec3) * NUM_POINTS;
 
 	// allocate memory for NUM_POINTS
@@ -99,72 +102,98 @@ int main()
 // CreatePoints
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation)
 {
-	switch (optimisation)
+	const unsigned MAX_ITERATIONS = 3;
+	int iteration = 0;
+	size_t workInput = 1;
+
+	totalPointsCreationTime = std::chrono::milliseconds(0);
+
+	while (iteration < MAX_ITERATIONS)
 	{
-	case Optimisation::OPTIMISATION_NONE:
-	{
-		// create points
-		printf("Creating Points...\n");
-		pointsCreationStart = std::chrono::system_clock::now();
-		CreatePoints(points, numPoints);
-		pointsCreationEnd = std::chrono::system_clock::now();
-		break;
-	}
-	case Optimisation::OPTIMISATION_THREADS:
-	{
-		// get the number of worker threads from the user
-		printf("Number of worker threads: ");
-		char buffer[256];
-		std::cin.getline(buffer, 256);
-		size_t numWorkerThreads = std::max(std::stoi(buffer), 1);
+		switch (optimisation)
+		{
+		case Optimisation::OPTIMISATION_NONE:
+		{
+			// create points
+			printf("Creating Points iteration %d ...\n", iteration);
+			pointsCreationStart = std::chrono::system_clock::now();
+			CreatePoints(points, numPoints);
+			pointsCreationEnd = std::chrono::system_clock::now();
 
-		// create points
-		printf("Creating Points...\n");
-		pointsCreationStart = std::chrono::system_clock::now();
-		CreatePointsByThreads(points, numPoints, numWorkerThreads);
-		pointsCreationEnd = std::chrono::system_clock::now();
+			totalPointsCreationTime += std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart);
 
-		break;
-	}
-	case Optimisation::OPTIMISATION_ASYNC_TASKS:
-	{
-		// get the number of async tasks from the user
-		printf("Number of async tasks: ");
-		char buffer[256];
-		std::cin.getline(buffer, 256);
-		size_t numTasks = std::max(std::stoi(buffer), 1);
+			break;
+		}
+		case Optimisation::OPTIMISATION_THREADS:
+		{
+			if (iteration == 0)
+			{
+				// get the number of worker threads from the user
+				printf("Number of worker threads: ");
+				char buffer[256];
+				std::cin.getline(buffer, 256);
+				workInput = std::max(std::stoi(buffer), 1);
+			}
+			
+			// create points
+			printf("Creating Points iteration %d ...\n", iteration);
+			pointsCreationStart = std::chrono::system_clock::now();
+			CreatePointsByThreads(points, numPoints, workInput);
+			pointsCreationEnd = std::chrono::system_clock::now();
+			totalPointsCreationTime += std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart);
 
-		// create points
-		printf("Creating Points...\n");
-		pointsCreationStart = std::chrono::system_clock::now();
-		CreatePointsByTasks(points, numPoints, numTasks);
-		pointsCreationEnd = std::chrono::system_clock::now();
+			break;
+		}
+		case Optimisation::OPTIMISATION_ASYNC_TASKS:
+		{
+			if (iteration == 0)
+			{
+				// get the number of async tasks from the user
+				printf("Number of async tasks: ");
+				char buffer[256];
+				std::cin.getline(buffer, 256);
+				workInput = std::max(std::stoi(buffer), 1);
+			}
+			
+			// create points
+			printf("Creating Points iteration %d ...\n", iteration);
+			pointsCreationStart = std::chrono::system_clock::now();
+			CreatePointsByTasks(points, numPoints, workInput);
+			pointsCreationEnd = std::chrono::system_clock::now();
+			totalPointsCreationTime += std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart);
 
-		break;
-	}
-	case Optimisation::OPTIMISATION_THREAD_POOL:
-	{
-		// get the number of async tasks from the user
-		printf("Number of tasks: ");
-		char buffer[256];
-		std::cin.getline(buffer, 256);
-		size_t numTasks = std::max(std::stoi(buffer), 1);
+			break;
+		}
+		case Optimisation::OPTIMISATION_THREAD_POOL:
+		{
+			if (iteration == 0)
+			{
+				// get the number of async tasks from the user
+				printf("Number of tasks: ");
+				char buffer[256];
+				std::cin.getline(buffer, 256);
+				workInput = std::max(std::stoi(buffer), 1);
+			}
 
-		// create points
-		printf("Creating Points...\n");
-		pointsCreationStart = std::chrono::system_clock::now();
-		CreatePointsByThreadPool(points, numPoints, numTasks);
-		pointsCreationEnd = std::chrono::system_clock::now();
+			// create points
+			printf("Creating Points iteration %d ...\n", iteration);
+			pointsCreationStart = std::chrono::system_clock::now();
+			CreatePointsByThreadPool(points, numPoints, workInput);
+			pointsCreationEnd = std::chrono::system_clock::now();
+			totalPointsCreationTime += std::chrono::duration_cast<std::chrono::milliseconds>(pointsCreationEnd - pointsCreationStart);
 
-		break;
-	}
-	default:
-		break;
+			break;
+		}
+		default:
+			break;
+		}
+
+		iteration++;
 	}
 
 	// print time results
 	printf("\n");
-	printf("Points created! Time: %s\n", GetTimeStr(pointsCreationStart, pointsCreationEnd).c_str());
+	printf("Points created!\n Num iterations: %d\n Total Time: %s\n Average Time: %s\n\n", MAX_ITERATIONS, GetTimeStr(totalPointsCreationTime).c_str(), GetTimeStr(totalPointsCreationTime / MAX_ITERATIONS).c_str());
 	printf("\n");
 }
 
@@ -174,11 +203,6 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints)
 	_CreatePoints(points, 0, numPoints);
 }
 
-
-void PrintHello(int a)
-{
-	std::cout << "Hello" << std::endl;
-}
 
 // CreatePoints using worker threads
 void CreatePointsByThreads(std::vector<agarzon::Vec3>& points, size_t numPoints, size_t numWorkerThreads)
@@ -295,6 +319,24 @@ std::string GetTimeStr(TimePoint start, TimePoint end)
 
 	std::stringstream ss;
 	ss << seconds << "s" << " " << milliseconds << "ms";
+
+	return ss.str();
+}
+
+std::string GetTimeStr(std::chrono::milliseconds time)
+{
+	size_t total = (size_t)time.count();
+
+	size_t millisecondsInSecond = 1000;
+	size_t secondsInMinute = 60;
+	size_t millisecondsInMinute = millisecondsInSecond * secondsInMinute;
+
+	size_t minutes = total / millisecondsInMinute;
+	size_t seconds = (total - (minutes * millisecondsInMinute)) / millisecondsInSecond;
+	size_t milliseconds = total - (minutes * millisecondsInMinute) - (seconds * millisecondsInSecond);
+
+	std::stringstream ss;
+	ss << minutes << "m " << seconds << "s " << milliseconds << "ms";
 
 	return ss.str();
 }
