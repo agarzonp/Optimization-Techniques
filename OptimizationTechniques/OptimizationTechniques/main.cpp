@@ -62,8 +62,6 @@ int main()
 	// The set of points
 	size_t NUM_POINTS = 100000000;
 	std::vector<agarzon::Vec3> points;
-	std::vector<agarzon::Vec3> pointsB;
-	std::vector<agarzon::Vec3> pointsC;
 	size_t m = sizeof(agarzon::Vec3) * NUM_POINTS;
 
 	// allocate memory for NUM_POINTS
@@ -102,13 +100,17 @@ int main()
 // CreatePoints
 void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisation optimisation)
 {
-	const unsigned MAX_ITERATIONS = 3;
-	int iteration = 0;
+	printf("Number of iterations: ");
+	char buffer[256];
+	std::cin.getline(buffer, 256);
+	unsigned maxIterations = std::max(std::stoi(buffer), 1);
+
+	unsigned iteration = 0;
 	size_t workInput = 1;
 
 	totalPointsCreationTime = std::chrono::milliseconds(0);
 
-	while (iteration < MAX_ITERATIONS)
+	while (iteration < maxIterations)
 	{
 		switch (optimisation)
 		{
@@ -193,7 +195,7 @@ void CreatePoints(std::vector<agarzon::Vec3>& points, size_t numPoints, Optimisa
 
 	// print time results
 	printf("\n");
-	printf("Points created!\n Num iterations: %d\n Total Time: %s\n Average Time: %s\n\n", MAX_ITERATIONS, GetTimeStr(totalPointsCreationTime).c_str(), GetTimeStr(totalPointsCreationTime / MAX_ITERATIONS).c_str());
+	printf("Points created!\nNum iterations: %d\nTotal Time: %s\nAverage Time: %s\n\n", maxIterations, GetTimeStr(totalPointsCreationTime).c_str(), GetTimeStr(totalPointsCreationTime / maxIterations).c_str());
 	printf("\n");
 }
 
