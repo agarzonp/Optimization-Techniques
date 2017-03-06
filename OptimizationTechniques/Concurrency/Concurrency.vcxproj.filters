@@ -13,11 +13,11 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\math">
-      <UniqueIdentifier>{ac5f8f00-b297-436d-acb4-4648401caffb}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\ThreadPool">
       <UniqueIdentifier>{c09998a0-4b95-4ea8-8e1a-0483c89033cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Math">
+      <UniqueIdentifier>{ac5f8f00-b297-436d-acb4-4648401caffb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -27,7 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\math\Math.h">
-      <Filter>Source Files\math</Filter>
+      <Filter>Source Files\Math</Filter>
     </ClInclude>
     <ClInclude Include="src\ThreadPool\ThreadPool.h">
       <Filter>Source Files\ThreadPool</Filter>

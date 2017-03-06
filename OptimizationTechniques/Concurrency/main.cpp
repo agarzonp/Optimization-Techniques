@@ -7,7 +7,7 @@
 #include<thread>
 #include<future>
 
-#include "math/Math.h"
+#include "Math/Math.h"
 #include "ThreadPool/ThreadPool.h"
 
 // seed mt19937 random number generator
