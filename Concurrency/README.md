@@ -1,5 +1,5 @@
 # Concurrency
-##Introduction
+## Introduction
 
 Concurrency can be defined as the ability to perform independent computation tasks in parallel with the purpose of improving performance and responsiveness. There are mainly two ways to achieve this:
 
@@ -22,14 +22,15 @@ We have simulated a random point cloud generation.
 
 The point cloud is represented by just an sdt::vector that holds 100000000 points that are set randomly.
 In order to get a performance improvement, the key part consist of splitting the random point generation process in different chunks.
-Each chunk will basically execute the following function:
+Each chunk basically belongs to a subset of the points. The creation of those points is done by the following function:
 
 ```c++
+std::random_device rd;
+std::mt19937 generator(rd());
+std::uniform_real_distribution<float> distribution(-1000000.0f, std::nextafterf(1000000.0f, FLT_MAX));
+
 void _CreatePoints(std::vector<agarzon::Vec3>& points, size_t startIndex, size_t endIndex)
 {
-	//size_t threadId = std::hash<std::thread::id>()(std::this_thread::get_id());
-	//printf("Thread %ull\n", threadId);
-
 	for (size_t i = startIndex; i < endIndex; i++)
 	{
 		agarzon::Vec3& p = points[i];
@@ -52,19 +53,41 @@ We join all of the worker threads to the main thread to make sure that the main 
 ### Async tasks
 
 Similar to worker threads, but instead we use std::async with the launch policy specified to std::launch::async.
-The launch policy is actually the one that will make the main thread to wait for all the async tasks to be completed.
+The launch policy is actually the one that makes the main thread to wait for all the async tasks to be completed before exiting from the scope where the async task was called. This is mainly because the destructor of each std::future belonging to the async task will force the task to be executed in another thread if it has not previously been executed. Note that if the launch policy was std::launch::deferred, it would be executed in the calling thread and not in a new thread, therefore the concurrency is lost.
 
 ### ThreadPool
 
-We have implemented a basic thread pool that handles a queue of tasks. Each task is submitted to the pool and it is pick up by an available worker thread. Whenever a task is submitted, a result is returned that wraps and std::future to the result.
+We have implemented a basic thread pool that handles a queue of tasks. Each task is submitted to the pool and it is picked up by an available worker thread. 
 
-The thread pool is initialised with a number of worker threads equal to the number of cores that are in the system minus one.
-Those worker threads are sleeping and they are waked up when there is a task to be done. This is done by using a condition variable.
-In order to avoid a race condition over the queue, whenever we want to access or modify it, a std::unique_lock is used to lock the mutex attached to the queue. 
+The thread pool is initialised with a number of worker threads equal to the number of cores that are in the system minus one. Therefore, it is designed to have one thread per core, so it could scale well in systems that have more or fewer cores. The worker threads are sleeping and they are waked up when there is a task in the queue. This is done by using a condition variable. Alternatively, we handle spurius awakes and make the thread to sleep if the queue is empty:
 
-##Results
+```c++
 
-The table below shows the resuls after 50 iterations for each optimisation type. The result was taken on a i7 processor with additional 109 processes running in the background.
+while (!terminate)
+{	
+	std::unique_lock<std::mutex> lock(tasksQueueMutex);
+
+	// Wait until there is a new task
+	// Execution from spurios wake up avoided by the lambda function. 
+	// The thread will wait if there is no task at all or no need to terminate
+	newTaskCondition.wait(lock, [this]() { return !tasks.empty() || terminate; });
+	
+	// thread awake! Execute task
+}
+```
+
+In order to avoid a race condition over the queue, whenever we want to access or modify it, a std::unique_lock is used to lock the mutex attached to the queue. The reason why a std::unique_lock is used over std::lock_guard is mainly because with the first one we can unlock the mutex whenever we want whereas with the latter only when it goes out of the scope. For example, we do not want to keep the mutex locked while the task is executing because there is no need to protect the queue for race condition at that time, therefore we want other threads to get access to the queue as earlier as possible.
+
+Whenever a task (ThreadTask) is submitted, a result(ThreadTaskResult)is returned. This ThreadTask and ThreadTaskResult are actually a wrapper to a std::packaged_task and an std::future respectively. Therefore, the thread that submits the task waits until it has been executed. These two data structures are using templates, so we can submit and get results of any type(template specialization for the void case).
+
+Finally, neither the threadpool or related data structures are copyable, move semantics are used instead. This decision is not only because of tperformance implication, but as well to keep consistency with the not copyable objects that we are using, mainly std::future and std::unique_ptr. 
+
+
+## Results
+
+The table below shows the results after 50 iterations for each optimisation type. 
+
+The results were taken on a Intel Core i7-3630QM @2.4Ghz  processor (8 cores) and using Windows 7 as the operative system. In the background, there were running an additional of 109 processes apart from the current experiment.
  
 | Optimisation         | Total time    | Average Time |
 |----------------------|--------------:|-------------:|
@@ -87,8 +110,10 @@ The table below shows the resuls after 50 iterations for each optimisation type.
 | ThreadPool 500 tasks | 5m 57s 525ms  | 7s 150ms     |
 
 
-It is clear that we are getting a considerable improvement with any of the optimisation types against the sequential or not optimised version, for the same amount of data. This is mainly because we are using the different cores available to create the points.
+It is clear that for the same amount of data, that is 100000000 points, we are getting a considerable improvement with any of the optimisation types against the sequential or not optimised version. This is mainly because we are using different cores available to create the points.
 
-However, there is not a significant difference between using an std::async over an std::thread. Even though an std::async is lighter than a thread, probably the launch policy is the one that forces to behave std::async similar to a thread.
+However, there is not a significant difference between using an std::async over an std::thread. Even though an std::async is lighter than a thread, the launch policy is the one that forces to behave std::async similar to a thread, as we said previously, it will force the task to be run in a different thread.
 
-Finally, we can oberve that the threadpool behaves better than creating worker threads the more tasks that are to be done. This is probably because all the time involve in the thread creation is gone. However, this is not the case against async tasks.
+Finally, we can oberve that the threadpool behaves better than creating worker threads when there amount of tasks is very high. This is probably because the time that involves thread creation/destruction and the impact of the thread scheduling by the OS is minimised with the threadpool. Mainly, because there are less threads to handle. However, this is not the case against async tasks.
+
+All in all, the threadpool looks like to be the multithreading optimisation technique to use, not only because it performs similiar to the rest of "primitive" techniques, but as well because it would scale better in different systems with different hardware capabilities
